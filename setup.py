@@ -24,6 +24,7 @@ setup(
     },
     install_requires=[
         'Fabric==1.9.0',
+        'PyYAML==3.11',
         'pathlib==1.0',
     ],
 )

@@ -4,6 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from cStringIO import StringIO
+import json
 import pipes
 import re
 
@@ -11,48 +13,43 @@ from fabric.api import *
 
 from pathlib import PurePath
 
+import yaml
 
-class Command(object):
-    def __init__(self, *arguments):
-        self.arguments = []
-        self << arguments
+from felt import systemctl
+from felt.command import Command
 
-    def __iter__(self):
-        return iter(self.arguments)
 
-    def __str__(self):
-        return self.get_command()
+def chown(*args, **kwargs):
+    cmd = Command('/usr/bin/chown')
+    def pop(key):
+        return kwargs.pop(key, False)
+    if pop('recursive'):
+        cmd < '--recursive'
+    if pop('verbose'):
+        cmd < '--verbose'
+    parts = []
+    if 'owner' in kwargs:
+        parts.append(kwargs.pop('owner'))
+    if 'group' in kwargs:
+        parts.append(':')
+        parts.append(kwargs.pop('group'))
+    cmd < ''.join(parts)
+    cmd << args
+    return cmd.run(**kwargs)
 
-    def append(self, argument):
-        self.arguments.append(self.escape(argument))
-    __lt__ = append
 
-    def extend(self, arguments):
-        for argument in arguments:
-            self < argument
-    __lshift__ = extend
-
-    def make_command(self):
-        return ' '.join(self.arguments)
-
-    def run(self, *args, **kwargs):
-        if kwargs.pop('use_sudo', False):
-            runner = sudo
-        else:
-            runner = run
-        return runner(self.make_command(), *args, **kwargs)
-
-    def sudo(self, *args, **kwargs):
-        kwargs['use_sudo'] = True
-        return self.run(*args, **kwargs)
-
-    @classmethod
-    def run_cmd(cls, *arguments, **run_kwargs):
-        return cls(*arguments).run(**run_kwargs)
-
-    @staticmethod
-    def escape(argument):
-        return pipes.quote(unicode(argument))
+def ln(*args, **kwargs):
+    def pop(key):
+        return kwargs.pop(key, False)
+    cmd = Command('/usr/bin/ln')
+    if pop('force'):
+        cmd < '--force'
+    if pop('symbolic'):
+        cmd < '--symbolic'
+    if pop('no_target_directory'):
+        cmd < '--no-target-directory'
+    cmd << args
+    return cmd.run(**kwargs)
 
 
 def margin(text):
@@ -80,6 +77,33 @@ def mv(sources, destination, **kwargs):
     cmd << sources
     cmd < destination
     return cmd.run(**kwargs)
+
+
+def nginx_escape(param):
+    return "'{}'".format(param
+        .replace('\\', r'\\')
+        .replace('$' , r'\$')
+        .replace("'" , r'\'')
+    )
+
+
+def put_str(str_, remote_path, *args, **kwargs):
+    return put(StringIO(str_), str(remote_path), *args, **kwargs)
+
+
+def read(path):
+    with path.open() as file_:
+        return file_.read()
+
+
+def read_json(path):
+    with path.open() as file_:
+        return json.load(file_)
+
+
+def read_yaml(path):
+    with path.open() as file_:
+        return yaml.load(file_)
 
 
 def rm(files, force=False, recursive=False, verbose=False, **kwargs):
