@@ -10,7 +10,7 @@ from setuptools import setup
 
 setup(
     name='felt',
-    version='0.1.0',
+    version='0.2.0',
     description='Fabric extensions for ArchLinux',
     author='Peter Sutton',
     author_email='foxxy@foxdogstudios.com',
